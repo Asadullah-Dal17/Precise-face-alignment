@@ -2,6 +2,7 @@ import cv2
 import numpy as np
 from PIL import Image
 import dlib
+import os
 
 
 def load_img(path):
@@ -184,12 +185,52 @@ def save_img(path, img):
     cv2.imwrite(path, img)
 
 
-def face_alignment(img_path, rotation_angle=0, show=True):
+def face_alignment(img_path):
     img = load_img(img_path)
-    img = rotation_detection_dlib(img, rotation_angle, show)
-    save_img("output/out_img.png", img)
+
+    img = rotation_detection_dlib(img, 1, show=False)
+    save_img("out_img/save_img.png", img)
+    return img
 
 
-img_path = "face_alignment.png"
+img_list = os.listdir("images")
+for file in img_list:
+    img_path = os.path.join("images", file)
 
-face_alignment(img_path)
+    img = face_alignment(img_path)
+
+    detector = dlib.get_frontal_face_detector()
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    rects = detector(gray, 0)
+    if len(rects) > 0:
+        for rect in rects:
+            x = rect.left()
+            y = rect.top()
+            w = rect.right()
+            h = rect.bottom()
+            # scaling the the Rectangle
+            sl_h = int(1.3 * h)
+
+            sl_w = int(1.3 * w)
+            off_h = sl_h - h
+            off_w = sl_w - w
+            # print(sl_x - x)
+        img_copy = img.copy()
+        cv2.rectangle(img, (x, y), (w, h), (0, 255, 0), 1)
+
+        cx, cy = int((x + w) / 2), int((h + y) / 2)
+        # cv2.circle(img, (cx, cy), 4, (0, 255, 0), -2)
+        n_off = int((h * 0.62))
+        cv2.rectangle(
+            img, (cx - n_off, cy - n_off), (cx + n_off, cy + n_off), (255, 0, 255), 3
+        )
+        crop_region = img_copy[cy - n_off : cy + n_off, cx - n_off : cx + n_off]
+
+        # cv2.rectangle(img, (x - off_w, y - off_h), (sl_w, sl_h), (0, 0, 255), 1)
+        print(crop_region.shape)
+        # cv2.imshow("region", crop_region)
+        resize_img = cv2.resize(crop_region, (256, 256))
+        cv2.imshow("out", resize_img)
+
+        cv2.imshow("img_out", img)
+        cv2.waitKey(0)
