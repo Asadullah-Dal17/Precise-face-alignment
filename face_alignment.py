@@ -43,9 +43,15 @@ def rotate_point(origin, point, angle):
 
 
 def is_between(point1, point2, point3, extra_point):
-    c1 = (point2[0] - point1[0]) * (extra_point[1] - point1[1]) - (point2[1] - point1[1]) * (extra_point[0] - point1[0])
-    c2 = (point3[0] - point2[0]) * (extra_point[1] - point2[1]) - (point3[1] - point2[1]) * (extra_point[0] - point2[0])
-    c3 = (point1[0] - point3[0]) * (extra_point[1] - point3[1]) - (point1[1] - point3[1]) * (extra_point[0] - point3[0])
+    c1 = (point2[0] - point1[0]) * (extra_point[1] - point1[1]) - (
+        point2[1] - point1[1]
+    ) * (extra_point[0] - point1[0])
+    c2 = (point3[0] - point2[0]) * (extra_point[1] - point2[1]) - (
+        point3[1] - point2[1]
+    ) * (extra_point[0] - point2[0])
+    c3 = (point1[0] - point3[0]) * (extra_point[1] - point3[1]) - (
+        point1[1] - point3[1]
+    ) * (extra_point[0] - point3[0])
     if (c1 < 0 and c2 < 0 and c3 < 0) or (c1 > 0 and c2 > 0 and c3 > 0):
         return True
     else:
@@ -57,13 +63,15 @@ def distance(a, b):
 
 
 def cosine_formula(length_line1, length_line2, length_line3):
-    cos_a = -(length_line3 ** 2 - length_line2 ** 2 - length_line1 ** 2) / (2 * length_line2 * length_line1)
+    cos_a = -(length_line3 ** 2 - length_line2 ** 2 - length_line1 ** 2) / (
+        2 * length_line2 * length_line1
+    )
     return cos_a
 
 
 def show_img(img):
     while True:
-        cv2.imshow('face_alignment_app', img)
+        cv2.imshow("face_alignment_app", img)
         c = cv2.waitKey(1)
         if c == 27:
             break
@@ -79,13 +87,15 @@ def shape_to_normal(shape):
 
 def rotate_opencv(img, nose_center, angle):
     M = cv2.getRotationMatrix2D(nose_center, angle, 1)
-    rotated = cv2.warpAffine(img, M, (img.shape[1], img.shape[0]), flags=cv2.INTER_CUBIC)
+    rotated = cv2.warpAffine(
+        img, M, (img.shape[1], img.shape[0]), flags=cv2.INTER_CUBIC
+    )
     return rotated
 
 
 def rotation_detection_dlib(img, mode, show=False):
     detector = dlib.get_frontal_face_detector()
-    predictor = dlib.shape_predictor('shape_predictor_5_face_landmarks.dat')
+    predictor = dlib.shape_predictor("shape_predictor_5_face_landmarks.dat")
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     rects = detector(gray, 0)
     if len(rects) > 0:
@@ -97,7 +107,10 @@ def rotation_detection_dlib(img, mode, show=False):
             shape = predictor(gray, rect)
             shape = shape_to_normal(shape)
             nose, left_eye, right_eye = get_eyes_nose_dlib(shape)
-            center_of_forehead = ((left_eye[0] + right_eye[0]) // 2, (left_eye[1] + right_eye[1]) // 2)
+            center_of_forehead = (
+                (left_eye[0] + right_eye[0]) // 2,
+                (left_eye[1] + right_eye[1]) // 2,
+            )
             center_pred = (int((x + w) / 2), int((y + y) / 2))
             length_line1 = distance(center_of_forehead, nose)
             length_line2 = distance(center_pred, nose)
@@ -124,9 +137,9 @@ def rotation_detection_dlib(img, mode, show=False):
 
 
 def rotation_detection_opencv(img, mode, show=False):
-    nose_cascade = cv2.CascadeClassifier('haarcascade_mcs_nose.xml')
-    eyes_cascade = cv2.CascadeClassifier('haarcascade_eye.xml')
-    fase_cascade = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
+    nose_cascade = cv2.CascadeClassifier("haarcascade_mcs_nose.xml")
+    eyes_cascade = cv2.CascadeClassifier("haarcascade_eye.xml")
+    fase_cascade = cv2.CascadeClassifier("haarcascade_frontalface_default.xml")
     gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
     nose_rects = nose_cascade.detectMultiScale(gray, 1.3, 5)
     eyes_rects = eyes_cascade.detectMultiScale(gray, 1.3, 5)
@@ -138,8 +151,14 @@ def rotation_detection_opencv(img, mode, show=False):
     else:
         print("Couldn't determine eyes/nose")
         return img
-    center_of_forehead = (int((right_eye[0] + left_eye[0]) / 2), int((right_eye[1] + left_eye[1]) / 2))
-    center_pred = (int((face_rects[0][0] + face_rects[0][2]) / 2), int((face_rects[0][1] + face_rects[0][1]) / 2))
+    center_of_forehead = (
+        int((right_eye[0] + left_eye[0]) / 2),
+        int((right_eye[1] + left_eye[1]) / 2),
+    )
+    center_pred = (
+        int((face_rects[0][0] + face_rects[0][2]) / 2),
+        int((face_rects[0][1] + face_rects[0][1]) / 2),
+    )
     length_line1 = distance(center_of_forehead, nose)
     length_line2 = distance(center_pred, nose)
     length_line3 = distance(center_pred, center_of_forehead)
@@ -165,10 +184,12 @@ def save_img(path, img):
     cv2.imwrite(path, img)
 
 
-def face_alignment(args):
-    img = load_img(args.path_to_load)
-    if args.mode == 0:
-        img = rotation_detection_opencv(img, args.rotation_mode, args.show)
-    else:
-        img = rotation_detection_dlib(img, args.rotation_mode,args.show)
-    save_img(args.path_to_save, img)
+def face_alignment(img_path, rotation_angle=0, show=True):
+    img = load_img(img_path)
+    img = rotation_detection_dlib(img, rotation_angle, show)
+    save_img("output/out_img.png", img)
+
+
+img_path = "face_alignment.png"
+
+face_alignment(img_path)
