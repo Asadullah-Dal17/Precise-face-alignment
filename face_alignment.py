@@ -2,16 +2,11 @@ import cv2
 import numpy as np
 from PIL import Image
 import dlib
-import os
 
 
 def load_img(path):
     img = cv2.imread(path)
     return img
-
-
-def draw_predict(frame, left, top, right, bottom):
-    cv2.rectangle(frame, (left, top), (right, bottom), (0, 0, 255), 3)
 
 
 def get_eyes_nose_dlib(shape):
@@ -64,7 +59,7 @@ def distance(a, b):
 
 
 def cosine_formula(length_line1, length_line2, length_line3):
-    cos_a = -(length_line3 ** 2 - length_line2 ** 2 - length_line1 ** 2) / (
+    cos_a = -(length_line3**2 - length_line2**2 - length_line1**2) / (
         2 * length_line2 * length_line1
     )
     return cos_a
@@ -86,15 +81,7 @@ def shape_to_normal(shape):
     return shape_normal
 
 
-def rotate_opencv(img, nose_center, angle):
-    M = cv2.getRotationMatrix2D(nose_center, angle, 1)
-    rotated = cv2.warpAffine(
-        img, M, (img.shape[1], img.shape[0]), flags=cv2.INTER_CUBIC
-    )
-    return rotated
-
-
-def rotation_detection_dlib(img, mode, show=False):
+def rotation_detection_dlib(img):
     detector = dlib.get_frontal_face_detector()
     predictor = dlib.shape_predictor("shape_predictor_5_face_landmarks.dat")
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
@@ -125,112 +112,41 @@ def rotation_detection_dlib(img, mode, show=False):
             else:
                 angle = np.degrees(angle)
 
-            if mode:
-                img = rotate_opencv(img, nose, angle)
-            else:
-                img = Image.fromarray(img)
-                img = np.array(img.rotate(angle))
-        if show:
-            show_img(img)
+            img = Image.fromarray(img)
+            img = np.array(img.rotate(angle))
         return img
     else:
         return img
-
-
-def rotation_detection_opencv(img, mode, show=False):
-    nose_cascade = cv2.CascadeClassifier("haarcascade_mcs_nose.xml")
-    eyes_cascade = cv2.CascadeClassifier("haarcascade_eye.xml")
-    fase_cascade = cv2.CascadeClassifier("haarcascade_frontalface_default.xml")
-    gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
-    nose_rects = nose_cascade.detectMultiScale(gray, 1.3, 5)
-    eyes_rects = eyes_cascade.detectMultiScale(gray, 1.3, 5)
-    face_rects = fase_cascade.detectMultiScale(gray, 1.3, 5)
-    length_eyes = len(eyes_rects)
-
-    if length_eyes == 2 and len(nose_rects) != 0 and len(face_rects) != 0:
-        nose, right_eye, left_eye = get_eyes_nose(eyes_rects, nose_rects)
-    else:
-        print("Couldn't determine eyes/nose")
-        return img
-    center_of_forehead = (
-        int((right_eye[0] + left_eye[0]) / 2),
-        int((right_eye[1] + left_eye[1]) / 2),
-    )
-    center_pred = (
-        int((face_rects[0][0] + face_rects[0][2]) / 2),
-        int((face_rects[0][1] + face_rects[0][1]) / 2),
-    )
-    length_line1 = distance(center_of_forehead, nose)
-    length_line2 = distance(center_pred, nose)
-    length_line3 = distance(center_pred, center_of_forehead)
-    cos_a = cosine_formula(length_line1, length_line2, length_line3)
-    angle = np.arccos(cos_a)
-    rotated_point = rotate_point(nose, center_of_forehead, angle)
-    rotated_point = (int(rotated_point[0]), int(rotated_point[1]))
-    if is_between(nose, center_of_forehead, center_pred, rotated_point):
-        angle = np.degrees(-angle)
-    else:
-        angle = np.degrees(angle)
-    if mode:
-        img = rotate_opencv(img, nose, angle)
-    else:
-        img = Image.fromarray(img)
-        img = np.array(img.rotate(angle))
-    if show:
-        show_img(img)
-    return img
 
 
 def save_img(path, img):
     cv2.imwrite(path, img)
 
 
-def face_alignment(img_path):
-    img = load_img(img_path)
-
-    img = rotation_detection_dlib(img, 1, show=False)
-    save_img("out_img/save_img.png", img)
-    return img
-
-
-img_list = os.listdir("images")
-for file in img_list:
-    img_path = os.path.join("images", file)
-
-    img = face_alignment(img_path)
+def face_alignment_and_crop(img_path):
+    img = cv2.imread(img_path)
+    img = rotation_detection_dlib(img)
+    img_copy = img.copy()
 
     detector = dlib.get_frontal_face_detector()
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    rects = detector(gray, 0)
+    rects = detector(gray, 1)
     if len(rects) > 0:
         for rect in rects:
             x = rect.left()
             y = rect.top()
             w = rect.right()
             h = rect.bottom()
-            # scaling the the Rectangle
-            sl_h = int(1.3 * h)
-
-            sl_w = int(1.3 * w)
-            off_h = sl_h - h
-            off_w = sl_w - w
-            # print(sl_x - x)
-        img_copy = img.copy()
         cv2.rectangle(img, (x, y), (w, h), (0, 255, 0), 1)
-
         cx, cy = int((x + w) / 2), int((h + y) / 2)
-        # cv2.circle(img, (cx, cy), 4, (0, 255, 0), -2)
         n_off = int((h * 0.62))
         cv2.rectangle(
             img, (cx - n_off, cy - n_off), (cx + n_off, cy + n_off), (255, 0, 255), 3
         )
         crop_region = img_copy[cy - n_off : cy + n_off, cx - n_off : cx + n_off]
-
-        # cv2.rectangle(img, (x - off_w, y - off_h), (sl_w, sl_h), (0, 0, 255), 1)
-        print(crop_region.shape)
-        # cv2.imshow("region", crop_region)
         resize_img = cv2.resize(crop_region, (256, 256))
         cv2.imshow("out", resize_img)
-
-        cv2.imshow("img_out", img)
         cv2.waitKey(0)
+
+
+face_alignment_and_crop("images/images (1).jpg")
